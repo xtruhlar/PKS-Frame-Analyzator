@@ -1,0 +1,22 @@
+267:PVSTP+
+512:XEROX PUP
+513:PUP Addr Trans
+2048:IPv4
+2049:X.75 Internet
+2053:X.25 Level 3
+2054:ARP
+8192:CDP
+8196:DTP
+32821:Reverse ARP
+32923:Appletalk
+33011:AppleTalk AARP (Kinetics)
+33024:IEEE 802.1Q VLAN-tagged frames
+33079:Novell IPX
+34525:IPv6
+34827:PPP
+34887:MPLS
+34888:MPLS wit upstream-assigned label
+34915:PPPoE Discovery Stage
+34916:PPPoE Session Stage
+35020:LLDP
+36864:ECTP

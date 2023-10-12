@@ -1,0 +1,15 @@
+0:Null SAP
+2:LLC Sublayer Management / Individual
+3:LLC Sublayer Management / Group
+6:IP (DoD Internet Protocol)
+14:PROWAY
+42:STP
+78:MMS
+94:ISI IP
+126:X.25 PLP
+142:PROWAY
+170:SNAP
+224:IPX
+240:NETBIOS
+244:LAN Management
+254:ISO Network Layer Protocols
