@@ -757,11 +757,11 @@ def task4_icmp(pcap_subor):
             "partial_comms": []
         }
 
-    cisielko = 0
+    order_number = 0
     for comm in enumerated_comunication.values():
-        cisielko += 1
+        order_number += 1
         complete_coms = {
-            "number_comm": cisielko,
+            "number_comm": order_number,
             "src_comm": comm.src_ip,
             "dst_comm": comm.dst_ip,
             "packets": []
@@ -780,11 +780,11 @@ def task4_icmp(pcap_subor):
             complete_coms["packets"].append(packet_info)
         menu["complete_comms"].append(complete_coms)
 
-    cisielko2 = 0
+    number = 0
     for comm in partial_c:
-        cisielko2 += 1
+        number += 1
         partial_coms = {
-            "number_comm": cisielko2,
+            "number_comm": number,
             "packets": []
         }
         for packet in comm.packets:
@@ -811,18 +811,6 @@ class TCP_commun:
         self.packets = []
         self.established = False
         self.complete = False
-
-
-'''
-todo:
-    - TCP
-      - kontrola flagov pre ramce
-        - SYN 
-        - SYN ACK 
-        - ACK 
-      - Vytvorit nove komunikacie, ktore boli hentak začaté.
-      - Ošetrit sposoby ukoncenia
-'''
 
 
 def task4_tcp(pcap_subor, task_code):
@@ -852,8 +840,11 @@ def task4_tcp(pcap_subor, task_code):
                         if port == task_code:
                             order_and_packet[counter] = packet
 
+    if len(order_and_packet) == 0:
+        print("V súbore sa nenachádzajú žiadne TCP pakety")
+        return
+
     server_and_client_ip_port = {}
-    indexing = 0
     for packet_num, raw_packet in order_and_packet.items():
         src_ip, dst_ip = get_ip_addresses(raw_packet)
         src_porty, dst_porty = get_ports(raw_packet)
@@ -867,13 +858,13 @@ def task4_tcp(pcap_subor, task_code):
             # Skontrolujte, či už máte takýto kľúč v slovníku
             if key1 in server_and_client_ip_port:
                 # Ak áno, pridajte tento paket do existujúcej komunikácie
-                server_and_client_ip_port[key1].append(packet)
+                server_and_client_ip_port[key1].append([packet_num, raw_packet])
             elif key2 in server_and_client_ip_port:
                 # Ak nie, pridajte tento paket do existujúcej komunikácie s iným kľúčom
-                server_and_client_ip_port[key2].append(packet)
+                server_and_client_ip_port[key2].append([packet_num, raw_packet])
             else:
                 # Ak neexistuje ani jeden z týchto kľúčov, vytvorte nový zoznam pre túto komunikáciu
-                server_and_client_ip_port[key1] = [packet]
+                server_and_client_ip_port[key1] = [[packet_num, raw_packet]]
 
     flag_there_was_syn = False
     flag_there_was_syn_ack = False
@@ -882,115 +873,182 @@ def task4_tcp(pcap_subor, task_code):
     flag_there_was_fin_ack_one = False
     flag_there_was_ack_one = False
     flag_there_was_fin_ack_two = False
-    flag_there_was_ack_two = False
 
-    if len(order_and_packet) == 0:
-        print("V súbore sa nenachádzajú žiadne TCP pakety")
-        return
+    # Pre kazdu server a client komunikaciu kontrolujem nadviazanie spojenia a ukoncenie
+    for ip_port, tuple_pair in server_and_client_ip_port.items():
+        for packet_num, raw_packet in tuple_pair:
+            src_ip, dst_ip = get_ip_addresses(raw_packet)
+            src_port, dst_port = get_ports(raw_packet)
+            flags = bin(int(str(hexlify(raw_packet[47:48]))[2:-1], 16))
+            flags = flags[2:]
+            flags = flags.zfill(8)
+            SYN = int(flags[-2])
+            ACK = int(flags[-5])
+            FIN = int(flags[-1])
+            RST = int(flags[-3])
 
-    # Potom ich roztriedim do jednotlivych komunikacii
-    for packet_num, raw_packet in order_and_packet.items():
-        src_ip, dst_ip = get_ip_addresses(raw_packet)
-        src_port, dst_port = get_ports(raw_packet)
-        flags = bin(int(str(hexlify(raw_packet[47:48]))[2:-1], 16))
-        flags = flags[2:]
-        flags = flags.zfill(8)
-        SYN = int(flags[-2])
-        ACK = int(flags[-5])
-        FIN = int(flags[-1])
-        RST = int(flags[-3])
+            # Nadviazanie spojenia
+            if flag_there_was_syn is False:
+                if SYN == 1 and ACK == 0 and FIN == 0 and RST == 0:
+                    flag_there_was_syn = True
+                    communication = TCP_commun(src_port, dst_port, src_ip, dst_ip)
+                    communication.order.append(packet_num)
+                    communication.packets.append(raw_packet)
+                    array_of_comms.append(communication)
+            elif flag_there_was_syn is True and flag_there_was_syn_ack is False:
+                if SYN == 1 and ACK == 1 and FIN == 0 and RST == 0:
+                    flag_there_was_syn_ack = True
+                    communication.order.append(packet_num)
+                    communication.packets.append(raw_packet)
+            elif flag_there_was_syn is True and flag_there_was_syn_ack is True and flag_there_was_ack is False:
+                if SYN == 0 and ACK == 1 and FIN == 0 and RST == 0:
+                    flag_there_was_ack = True
+                    communication.order.append(packet_num)
+                    communication.packets.append(raw_packet)
+                    communication.established = True
 
-        # Nadviazanie spojenia
-        if flag_there_was_syn is False:
-            if SYN == 1 and ACK == 0 and FIN == 0 and RST == 0:
-                flag_there_was_syn = True
-                communication = TCP_commun(src_port, dst_port, src_ip, dst_ip)
-                communication.order.append(packet_num)
-                communication.packets.append(raw_packet)
-                array_of_comms.append(communication)
-        elif flag_there_was_syn is True and flag_there_was_syn_ack is False:
-            if SYN == 1 and ACK == 1 and FIN == 0 and RST == 0:
-                flag_there_was_syn_ack = True
-                communication.order.append(packet_num)
-                communication.packets.append(raw_packet)
-        elif flag_there_was_syn is True and flag_there_was_syn_ack is True and flag_there_was_ack is False:
-            if SYN == 0 and ACK == 1 and FIN == 0 and RST == 0:
-                flag_there_was_ack = True
-                communication.order.append(packet_num)
-                communication.packets.append(raw_packet)
-                communication.established = True
+            # If connection is established
+            elif flag_there_was_syn is True and flag_there_was_syn_ack is True and flag_there_was_ack is True:
+                # The same communication has to use same ip addresses and ports
+                if (src_ip == communication.src_ip or src_ip == communication.dst_ip) and (
+                        dst_ip == communication.dst_ip or dst_ip == communication.src_ip) and (
+                        src_port == communication.src_port or src_port == communication.dst_port) and (
+                        dst_port == communication.dst_port or dst_port == communication.src_port):
+                    if communication.established is True:
+                        # There are 4 way of ending connection
+                        # If last packet has RST
+                        if RST == 1:
+                            communication.order.append(packet_num)
+                            communication.packets.append(raw_packet)
+                            communication.complete = True
+                            flag_there_was_syn = False
+                            flag_there_was_syn_ack = False
+                            flag_there_was_ack = False
+                        # If last packet has RST and ACK
+                        elif RST == 1 and ACK == 1:
+                            communication.order.append(packet_num)
+                            communication.packets.append(raw_packet)
+                            communication.complete = True
+                            flag_there_was_syn = False
+                            flag_there_was_syn_ack = False
+                            flag_there_was_ack = False
+                        # If communication[-3] has FIN and ACK, communication[-2] has FIN and ACK and communication[-1] has ACK
+                        elif flag_there_was_fin_ack_one is False and FIN == 1 and ACK == 1:
+                            flag_there_was_fin_ack_one = True
+                            communication.order.append(packet_num)
+                            communication.packets.append(raw_packet)
+                        elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 1 and ACK == 1:
+                            flag_there_was_fin_ack_two = True
+                            communication.order.append(packet_num)
+                            communication.packets.append(raw_packet)
+                        elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is True and FIN == 0 and ACK == 1:
+                            communication.order.append(packet_num)
+                            communication.packets.append(raw_packet)
+                            communication.complete = True
+                            flag_there_was_syn = False
+                            flag_there_was_syn_ack = False
+                            flag_there_was_ack = False
+                            flag_there_was_fin_ack_one = False
+                            flag_there_was_fin_ack_two = False
+                        # If communication[-4] has FIN and ACK, communication[-3] has ACK, communication[-2] has FIN and ACK and communication[-1] has ACK
+                        elif flag_there_was_fin_ack_one is False and FIN == 1 and ACK == 1:
+                            flag_there_was_fin_ack_one = True
+                            communication.order.append(packet_num)
+                            communication.packets.append(raw_packet)
+                        elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 0 and ACK == 1:
+                            flag_there_was_ack_one = True
+                            communication.order.append(packet_num)
+                            communication.packets.append(raw_packet)
+                        elif flag_there_was_fin_ack_one is True and flag_there_was_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 1 and ACK == 1:
+                            flag_there_was_fin_ack_two = True
+                            communication.order.append(packet_num)
+                            communication.packets.append(raw_packet)
+                        elif flag_there_was_fin_ack_one is True and flag_there_was_ack_one is True and flag_there_was_fin_ack_two is True and FIN == 0 and ACK == 1:
+                            communication.order.append(packet_num)
+                            communication.packets.append(raw_packet)
+                            communication.complete = True
+                            flag_there_was_syn = False
+                            flag_there_was_syn_ack = False
+                            flag_there_was_ack = False
+                            flag_there_was_fin_ack_one = False
+                            flag_there_was_fin_ack_two = False
+                            flag_there_was_ack_one = False
+                        else:
+                            communication.order.append(packet_num)
+                            communication.packets.append(raw_packet)
 
-        # If connection is established
-        elif flag_there_was_syn is True and flag_there_was_syn_ack is True and flag_there_was_ack is True:
-            # The same communication has to use same ip addresses and ports
-            if (src_ip == communication.src_ip or src_ip == communication.dst_ip) and (
-                    dst_ip == communication.dst_ip or dst_ip == communication.src_ip) and (
-                    src_port == communication.src_port or src_port == communication.dst_port) and (
-                    dst_port == communication.dst_port or dst_port == communication.src_port):
-                if communication.established is True:
-                    # There are 4 way of ending connection
-                    # If last packet has RST
-                    if RST == 1:
-                        communication.order.append(packet_num)
-                        communication.packets.append(raw_packet)
-                        communication.complete = True
-                        flag_there_was_syn = False
-                        flag_there_was_syn_ack = False
-                        flag_there_was_ack = False
-                    # If last packet has RST and ACK
-                    elif RST == 1 and ACK == 1:
-                        communication.order.append(packet_num)
-                        communication.packets.append(raw_packet)
-                        communication.complete = True
-                        flag_there_was_syn = False
-                        flag_there_was_syn_ack = False
-                        flag_there_was_ack = False
-                    # If communication[-3] has FIN and ACK, communication[-2] has FIN and ACK and communication[-1] has ACK
-                    elif flag_there_was_fin_ack_one is False and FIN == 1 and ACK == 1:
-                        flag_there_was_fin_ack_one = True
-                        communication.order.append(packet_num)
-                        communication.packets.append(raw_packet)
-                    elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 1 and ACK == 1:
-                        flag_there_was_fin_ack_two = True
-                        communication.order.append(packet_num)
-                        communication.packets.append(raw_packet)
-                    elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is True and FIN == 0 and ACK == 1:
-                        communication.order.append(packet_num)
-                        communication.packets.append(raw_packet)
-                        communication.complete = True
-                        flag_there_was_syn = False
-                        flag_there_was_syn_ack = False
-                        flag_there_was_ack = False
-                        flag_there_was_fin_ack_one = False
-                        flag_there_was_fin_ack_two = False
-                    # If communication[-4] has FIN and ACK, communication[-3] has ACK, communication[-2] has FIN and ACK and communication[-1] has ACK
-                    elif flag_there_was_fin_ack_one is False and FIN == 1 and ACK == 1:
-                        flag_there_was_fin_ack_one = True
-                        communication.order.append(packet_num)
-                        communication.packets.append(raw_packet)
-                    elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 0 and ACK == 1:
-                        flag_there_was_ack_one = True
-                        communication.order.append(packet_num)
-                        communication.packets.append(raw_packet)
-                    elif flag_there_was_fin_ack_one is True and flag_there_was_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 1 and ACK == 1:
-                        flag_there_was_fin_ack_two = True
-                        communication.order.append(packet_num)
-                        communication.packets.append(raw_packet)
-                    elif flag_there_was_fin_ack_one is True and flag_there_was_ack_one is True and flag_there_was_fin_ack_two is True and FIN == 0 and ACK == 1:
-                        communication.order.append(packet_num)
-                        communication.packets.append(raw_packet)
-                        communication.complete = True
-                        flag_there_was_syn = False
-                        flag_there_was_syn_ack = False
-                        flag_there_was_ack = False
-                        flag_there_was_fin_ack_one = False
-                        flag_there_was_fin_ack_two = False
-                        flag_there_was_ack_one = False
-                    else:
-                        communication.order.append(packet_num)
-                        communication.packets.append(raw_packet)
+    # Roztriedenie komunikácií do complete a partial
+    complete_c = []
+    partial_c = []
+    for comm in array_of_comms:
+        if comm.complete:
+            complete_c.append(comm)
+        else:
+            partial_c.append(comm)
 
-    print("----------------------------------------------------------")
+    # Formát menu pre YAML
+    if len(complete_c) != 0 and len(partial_c) != 0:
+        menu = {
+            "name": str('PKS2023/24'),
+            "pcap_name": str(pcap_subor),
+            "filter_name": task_code.upper(),
+            "complete_comms": [],
+            "partial_comms": []
+        }
+
+    elif len(complete_c) != 0 and len(partial_c) == 0:
+        menu = {
+            "name": str('PKS2023/24'),
+            "pcap_name": str(pcap_subor),
+            "filter_name": task_code.upper(),
+            "complete_comms": [],
+        }
+
+    elif len(complete_c) == 0 and len(partial_c) != 0:
+        menu = {
+            "name": str('PKS2023/24'),
+            "pcap_name": str(pcap_subor),
+            "filter_name": task_code.upper(),
+            "partial_comms": []
+        }
+
+    order_number = 0
+    if len(complete_c) != 0:
+        for comm in complete_c:
+            order_number += 1
+            complete_coms = {
+                "number_comm": order_number,
+                "src_comm": comm.src_ip,
+                "dst_comm": comm.dst_ip,
+                "packets": []
+            }
+            for packet in comm.packets:
+                packet = raw(packet)
+                frame_number = comm.order[comm.packets.index(packet)]
+                packet_info = {"frame_number": frame_number}
+                packet_info.update(format_output_1(packet, "tcp"))
+                packet_info.update(format_output_2(packet))
+                complete_coms["packets"].append(packet_info)
+            menu["complete_comms"].append(complete_coms)
+
+    if len(partial_c) != 0:
+        comm = partial_c[0]
+        partial_coms = {
+            "number_comm": 1,
+            "packets": []
+        }
+        for packet in comm.packets:
+            packet = raw(packet)
+            frame_number = comm.order[comm.packets.index(packet)]
+            packet_info = {"frame_number": frame_number}
+            packet_info.update(format_output_1(packet, "tcp"))
+            packet_info.update(format_output_2(packet))
+            partial_coms["packets"].append(packet_info)
+        menu["partial_comms"].append(partial_coms)
+
+    print_it(menu)
+
+    return
 
 
 protocols_llc = load_protocols_from_file(100)
