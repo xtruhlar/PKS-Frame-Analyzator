@@ -801,6 +801,80 @@ def task4_icmp(pcap_subor):
     return
 
 
+class TCP_commun:
+    def __init__(self, src_port, dst_port, src_ip, dst_ip):
+        self.src_port = src_port
+        self.dst_port = dst_port
+        self.src_ip = src_ip
+        self.dst_ip = dst_ip
+        self.order = []
+        self.packets = []
+        self.established = False
+        self.complete = False
+
+
+'''
+todo:
+    - TCP
+      - Podla inputu vytvorit pole s framami s danym portom
+      - kontrola flagov pre ramce
+        - SYN ()
+        - SYN ACK (18)
+        - ACK ()
+      - Vytvorit nove komunikacie, ktore boli hentak začaté.
+      - Ošetrit sposoby ukoncenia
+'''
+
+
+def task4_tcp(pcap_subor, task_code):
+    counter = 0
+    try:
+        packets = rdpcap(pcap_subor)
+        pcap_subor = pcap_subor.split('/')[-1]
+
+    except Exception as e:
+        print(f"Chyba pri čítaní pcap súboru: {e}")
+
+    # Najskor najdem vsetky TCP komunikacie
+    for packet in packets:
+        counter += 1
+        packet = raw(packet)
+        ether_type = int(str(hexlify(packet[12:14]))[2:-1], 16)
+        if ether_type == 2048:
+            protocol_ip = int(str(hexlify(packet[23:24]))[2:-1], 16)
+            if protocol_ip in protocols_ip:
+                if protocols_ip[protocol_ip] == 'TCP':
+                    src_port = int(str(hexlify(packet[34:36]))[2:-1], 16)
+                    dst_port = int(str(hexlify(packet[36:38]))[2:-1], 16)
+                    if src_port in ports or dst_port in ports:
+                        if src_port in ports:
+                            port = ports[src_port]
+                        else:
+                            port = ports[dst_port]
+                        if port == task_code:
+                            order_and_packet[counter] = packet
+
+
+    flag_there_was_syn = False
+    flag_there_was_syn_ack = False
+    flag_there_was_ack = False
+
+    if len(order_and_packet) == 0:
+        print("V súbore sa nenachádzajú žiadne TCP pakety")
+        return
+
+    # Potom ich roztriedim do jednotlivych komunikacii
+    for packet_num, raw_packet in order_and_packet.items():
+        flags = bin(int(str(hexlify(raw_packet[47:48]))[2:-1], 16))
+        flags = flags[2:]
+        flags = flags.zfill(8)
+        SYN = int(flags[-2])
+        ACK = int(flags[-5])
+        FIN = int(flags[-1])
+        RST = int(flags[-3])
+
+        print(flags)
+
 protocols_llc = load_protocols_from_file(100)
 protocols_ether = load_protocols_from_file(513)
 protocols_ip = load_protocols_for_ip()
@@ -826,7 +900,7 @@ def main():
     print("2 Pridanie informácií o IP, protokoloch a portoch")
     print("3 Zobrazenie štatistiky - IP")
     print("--4 Zadaj názov filtra--")
-    print("HTTP | HTTPS | TELNET | SSH | FTPcontrol | FRPdata | TFTP | ARP | ICMP")
+    print("HTTP | HTTPS | TELNET | SSH | FTPcontrol | FTPdata | TFTP | ARP | ICMP")
 
     task = input("\nZadaj číslo úlohy: ")
     if task == "1" or task == "2" or task == "3":
@@ -837,6 +911,20 @@ def main():
         task4_arp(pcap_subor)
     if task == "icmp" or task == "ICMP":
         task4_icmp(pcap_subor)
+    if task == "http" or task == "HTTP" or task == "https" or task == "HTTPS" or task == "telnet" or task == "TELNET" or task == "ssh" or task == "SSH" or task == "ftpcontrol" or task == "FTPcontrol" or task == "FTPc" or task == "ftpdata" or task == "FTPdata" or task == "FTPd" or task == "ftpd" or task == "ftpc":
+        if task == "http":
+            task = "HTTP"  # trace-10.pcap
+        if task == "https":
+            task = "HTTPS"  # trace-10.pcap
+        if task == "telnet":
+            task = "TELNET"  # trace-9.pcap
+        if task == "ssh":
+            task = "SSH"  # eth-5.pcap
+        if task == "ftpcontrol" or task == "FTPcontrol" or task == "FTPc" or task == "ftpc":
+            task = "FTP-CONTROL"  # trace-14.pcap
+        if task == "ftpdata" or task == "FTPdata" or task == "FTPd" or task == "ftpd":
+            task = "FTP-DATA"  # trace-14.pcap
+        task4_tcp(pcap_subor, task)
     return 0
 
 
