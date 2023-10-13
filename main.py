@@ -816,11 +816,10 @@ class TCP_commun:
 '''
 todo:
     - TCP
-      - Podla inputu vytvorit pole s framami s danym portom
       - kontrola flagov pre ramce
-        - SYN ()
-        - SYN ACK (18)
-        - ACK ()
+        - SYN 
+        - SYN ACK 
+        - ACK 
       - Vytvorit nove komunikacie, ktore boli hentak začaté.
       - Ošetrit sposoby ukoncenia
 '''
@@ -844,8 +843,7 @@ def task4_tcp(pcap_subor, task_code):
             protocol_ip = int(str(hexlify(packet[23:24]))[2:-1], 16)
             if protocol_ip in protocols_ip:
                 if protocols_ip[protocol_ip] == 'TCP':
-                    src_port = int(str(hexlify(packet[34:36]))[2:-1], 16)
-                    dst_port = int(str(hexlify(packet[36:38]))[2:-1], 16)
+                    src_port, dst_port = get_ports(packet)
                     if src_port in ports or dst_port in ports:
                         if src_port in ports:
                             port = ports[src_port]
@@ -853,7 +851,6 @@ def task4_tcp(pcap_subor, task_code):
                             port = ports[dst_port]
                         if port == task_code:
                             order_and_packet[counter] = packet
-
 
     flag_there_was_syn = False
     flag_there_was_syn_ack = False
@@ -865,6 +862,8 @@ def task4_tcp(pcap_subor, task_code):
 
     # Potom ich roztriedim do jednotlivych komunikacii
     for packet_num, raw_packet in order_and_packet.items():
+        src_ip, dst_ip = get_ip_addresses(raw_packet)
+        src_port, dst_port = get_ports(raw_packet)
         flags = bin(int(str(hexlify(raw_packet[47:48]))[2:-1], 16))
         flags = flags[2:]
         flags = flags.zfill(8)
@@ -873,7 +872,30 @@ def task4_tcp(pcap_subor, task_code):
         FIN = int(flags[-1])
         RST = int(flags[-3])
 
-        print(flags)
+        # Nadviazanie spojenia
+        if flag_there_was_syn is False:
+            if SYN == 1 and ACK == 0 and FIN == 0 and RST == 0:
+                flag_there_was_syn = True
+                communication = TCP_commun(src_port, dst_port, src_ip, dst_ip)
+                communication.order.append(packet_num)
+                communication.packets.append(raw_packet)
+                array_of_comms.append(communication)
+        elif flag_there_was_syn is True and flag_there_was_syn_ack is False:
+            if SYN == 1 and ACK == 1 and FIN == 0 and RST == 0:
+                flag_there_was_syn_ack = True
+                communication.order.append(packet_num)
+                communication.packets.append(raw_packet)
+        elif flag_there_was_syn is True and flag_there_was_syn_ack is True and flag_there_was_ack is False:
+            if SYN == 0 and ACK == 1 and FIN == 0 and RST == 0:
+                flag_there_was_ack = True
+                communication.order.append(packet_num)
+                communication.packets.append(raw_packet)
+                communication.established = True
+
+        # If connection is established
+
+
+
 
 protocols_llc = load_protocols_from_file(100)
 protocols_ether = load_protocols_from_file(513)
