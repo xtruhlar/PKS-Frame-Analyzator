@@ -852,6 +852,29 @@ def task4_tcp(pcap_subor, task_code):
                         if port == task_code:
                             order_and_packet[counter] = packet
 
+    server_and_client_ip_port = {}
+    indexing = 0
+    for packet_num, raw_packet in order_and_packet.items():
+        src_ip, dst_ip = get_ip_addresses(raw_packet)
+        src_porty, dst_porty = get_ports(raw_packet)
+
+        # Skontrolujte, či máte dostupné IP adresy a porty
+        if src_porty is not None and dst_porty is not None:
+            # Vytvorte unikátny kľúč pre túto komunikáciu
+            key1 = (src_ip, src_porty, dst_ip, dst_porty)
+            key2 = (dst_ip, dst_porty, src_ip, src_porty)
+
+            # Skontrolujte, či už máte takýto kľúč v slovníku
+            if key1 in server_and_client_ip_port:
+                # Ak áno, pridajte tento paket do existujúcej komunikácie
+                server_and_client_ip_port[key1].append(packet)
+            elif key2 in server_and_client_ip_port:
+                # Ak nie, pridajte tento paket do existujúcej komunikácie s iným kľúčom
+                server_and_client_ip_port[key2].append(packet)
+            else:
+                # Ak neexistuje ani jeden z týchto kľúčov, vytvorte nový zoznam pre túto komunikáciu
+                server_and_client_ip_port[key1] = [packet]
+
     flag_there_was_syn = False
     flag_there_was_syn_ack = False
     flag_there_was_ack = False
@@ -899,69 +922,76 @@ def task4_tcp(pcap_subor, task_code):
 
         # If connection is established
         elif flag_there_was_syn is True and flag_there_was_syn_ack is True and flag_there_was_ack is True:
-            if communication.established is True:
-                # There are 4 way of ending connection
-                # If last packet has RST
-                if RST == 1:
-                    communication.order.append(packet_num)
-                    communication.packets.append(raw_packet)
-                    communication.complete = True
-                    flag_there_was_syn = False
-                    flag_there_was_syn_ack = False
-                    flag_there_was_ack = False
-                # If last packet has RST and ACK
-                elif RST == 1 and ACK == 1:
-                    communication.order.append(packet_num)
-                    communication.packets.append(raw_packet)
-                    communication.complete = True
-                    flag_there_was_syn = False
-                    flag_there_was_syn_ack = False
-                    flag_there_was_ack = False
-                # If communication[-3] has FIN and ACK, communication[-2] has FIN and ACK and communication[-1] has ACK
-                elif flag_there_was_fin_ack_one is False and FIN == 1 and ACK == 1:
-                    flag_there_was_fin_ack_one = True
-                    communication.order.append(packet_num)
-                    communication.packets.append(raw_packet)
-                elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 1 and ACK == 1:
-                    flag_there_was_fin_ack_two = True
-                    communication.order.append(packet_num)
-                    communication.packets.append(raw_packet)
-                elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is True and FIN == 0 and ACK == 1:
-                    communication.order.append(packet_num)
-                    communication.packets.append(raw_packet)
-                    communication.complete = True
-                    flag_there_was_syn = False
-                    flag_there_was_syn_ack = False
-                    flag_there_was_ack = False
-                    flag_there_was_fin_ack_one = False
-                    flag_there_was_fin_ack_two = False
-                # If communication[-4] has FIN and ACK, communication[-3] has ACK, communication[-2] has FIN and ACK and communication[-1] has ACK
-                elif flag_there_was_fin_ack_one is False and FIN == 1 and ACK == 1:
-                    flag_there_was_fin_ack_one = True
-                    communication.order.append(packet_num)
-                    communication.packets.append(raw_packet)
-                elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 0 and ACK == 1:
-                    flag_there_was_ack_one = True
-                    communication.order.append(packet_num)
-                    communication.packets.append(raw_packet)
-                elif flag_there_was_fin_ack_one is True and flag_there_was_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 1 and ACK == 1:
-                    flag_there_was_fin_ack_two = True
-                    communication.order.append(packet_num)
-                    communication.packets.append(raw_packet)
-                elif flag_there_was_fin_ack_one is True and flag_there_was_ack_one is True and flag_there_was_fin_ack_two is True and FIN == 0 and ACK == 1:
-                    communication.order.append(packet_num)
-                    communication.packets.append(raw_packet)
-                    communication.complete = True
-                    flag_there_was_syn = False
-                    flag_there_was_syn_ack = False
-                    flag_there_was_ack = False
-                    flag_there_was_fin_ack_one = False
-                    flag_there_was_fin_ack_two = False
-                    flag_there_was_ack_one = False
+            # The same communication has to use same ip addresses and ports
+            if (src_ip == communication.src_ip or src_ip == communication.dst_ip) and (
+                    dst_ip == communication.dst_ip or dst_ip == communication.src_ip) and (
+                    src_port == communication.src_port or src_port == communication.dst_port) and (
+                    dst_port == communication.dst_port or dst_port == communication.src_port):
+                if communication.established is True:
+                    # There are 4 way of ending connection
+                    # If last packet has RST
+                    if RST == 1:
+                        communication.order.append(packet_num)
+                        communication.packets.append(raw_packet)
+                        communication.complete = True
+                        flag_there_was_syn = False
+                        flag_there_was_syn_ack = False
+                        flag_there_was_ack = False
+                    # If last packet has RST and ACK
+                    elif RST == 1 and ACK == 1:
+                        communication.order.append(packet_num)
+                        communication.packets.append(raw_packet)
+                        communication.complete = True
+                        flag_there_was_syn = False
+                        flag_there_was_syn_ack = False
+                        flag_there_was_ack = False
+                    # If communication[-3] has FIN and ACK, communication[-2] has FIN and ACK and communication[-1] has ACK
+                    elif flag_there_was_fin_ack_one is False and FIN == 1 and ACK == 1:
+                        flag_there_was_fin_ack_one = True
+                        communication.order.append(packet_num)
+                        communication.packets.append(raw_packet)
+                    elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 1 and ACK == 1:
+                        flag_there_was_fin_ack_two = True
+                        communication.order.append(packet_num)
+                        communication.packets.append(raw_packet)
+                    elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is True and FIN == 0 and ACK == 1:
+                        communication.order.append(packet_num)
+                        communication.packets.append(raw_packet)
+                        communication.complete = True
+                        flag_there_was_syn = False
+                        flag_there_was_syn_ack = False
+                        flag_there_was_ack = False
+                        flag_there_was_fin_ack_one = False
+                        flag_there_was_fin_ack_two = False
+                    # If communication[-4] has FIN and ACK, communication[-3] has ACK, communication[-2] has FIN and ACK and communication[-1] has ACK
+                    elif flag_there_was_fin_ack_one is False and FIN == 1 and ACK == 1:
+                        flag_there_was_fin_ack_one = True
+                        communication.order.append(packet_num)
+                        communication.packets.append(raw_packet)
+                    elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 0 and ACK == 1:
+                        flag_there_was_ack_one = True
+                        communication.order.append(packet_num)
+                        communication.packets.append(raw_packet)
+                    elif flag_there_was_fin_ack_one is True and flag_there_was_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 1 and ACK == 1:
+                        flag_there_was_fin_ack_two = True
+                        communication.order.append(packet_num)
+                        communication.packets.append(raw_packet)
+                    elif flag_there_was_fin_ack_one is True and flag_there_was_ack_one is True and flag_there_was_fin_ack_two is True and FIN == 0 and ACK == 1:
+                        communication.order.append(packet_num)
+                        communication.packets.append(raw_packet)
+                        communication.complete = True
+                        flag_there_was_syn = False
+                        flag_there_was_syn_ack = False
+                        flag_there_was_ack = False
+                        flag_there_was_fin_ack_one = False
+                        flag_there_was_fin_ack_two = False
+                        flag_there_was_ack_one = False
+                    else:
+                        communication.order.append(packet_num)
+                        communication.packets.append(raw_packet)
 
+    print("----------------------------------------------------------")
 
-        # If connection is not established
-        print("----------------------------------------------------------")
 
 protocols_llc = load_protocols_from_file(100)
 protocols_ether = load_protocols_from_file(513)
