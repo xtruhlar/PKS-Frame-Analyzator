@@ -856,6 +856,11 @@ def task4_tcp(pcap_subor, task_code):
     flag_there_was_syn_ack = False
     flag_there_was_ack = False
 
+    flag_there_was_fin_ack_one = False
+    flag_there_was_fin_ack_two = False
+    flag_there_was_rst_ack = False
+    flag_there_was_rst = False
+
     if len(order_and_packet) == 0:
         print("V súbore sa nenachádzajú žiadne TCP pakety")
         return
@@ -893,9 +898,47 @@ def task4_tcp(pcap_subor, task_code):
                 communication.established = True
 
         # If connection is established
+        elif flag_there_was_syn is True and flag_there_was_syn_ack is True and flag_there_was_ack is True:
+            if communication.established is True:
+                # There are 4 way of ending connection
+                # If last packet has RST
+                if RST == 1:
+                    communication.order.append(packet_num)
+                    communication.packets.append(raw_packet)
+                    communication.complete = True
+                    flag_there_was_syn = False
+                    flag_there_was_syn_ack = False
+                    flag_there_was_ack = False
+                # If last packet has RST and ACK
+                elif RST == 1 and ACK == 1:
+                    communication.order.append(packet_num)
+                    communication.packets.append(raw_packet)
+                    communication.complete = True
+                    flag_there_was_syn = False
+                    flag_there_was_syn_ack = False
+                    flag_there_was_ack = False
+                # If communication[-3] has FIN and ACK, communication[-2] has FIN and ACK and communication[-1] has ACK
+                elif flag_there_was_fin_ack_one is False and FIN == 1 and ACK == 1:
+                    flag_there_was_fin_ack_one = True
+                    communication.order.append(packet_num)
+                    communication.packets.append(raw_packet)
+                elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is False and FIN == 1 and ACK == 1:
+                    flag_there_was_fin_ack_two = True
+                    communication.order.append(packet_num)
+                    communication.packets.append(raw_packet)
+                elif flag_there_was_fin_ack_one is True and flag_there_was_fin_ack_two is True and FIN == 0 and ACK == 1:
+                    communication.order.append(packet_num)
+                    communication.packets.append(raw_packet)
+                    communication.complete = True
+                    flag_there_was_syn = False
+                    flag_there_was_syn_ack = False
+                    flag_there_was_ack = False
 
 
 
+
+        # If connection is not established
+        print("----------------------------------------------------------")
 
 protocols_llc = load_protocols_from_file(100)
 protocols_ether = load_protocols_from_file(513)
