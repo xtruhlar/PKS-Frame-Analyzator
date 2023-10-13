@@ -8,6 +8,19 @@ yaml = ruamel.yaml.YAML()
 hash_table_IP = {}
 
 
+# Class pre TCP
+class TCP_commun:
+    def __init__(self, src_port, dst_port, src_ip, dst_ip):
+        self.src_port = src_port
+        self.dst_port = dst_port
+        self.src_ip = src_ip
+        self.dst_ip = dst_ip
+        self.order = []
+        self.packets = []
+        self.established = False
+        self.complete = False
+
+
 # Class pre TFTP filter
 class UDP_comm:
     def __init__(self, src_port, dst_port, src_ip, dst_ip):
@@ -801,18 +814,6 @@ def task4_icmp(pcap_subor):
     return
 
 
-class TCP_commun:
-    def __init__(self, src_port, dst_port, src_ip, dst_ip):
-        self.src_port = src_port
-        self.dst_port = dst_port
-        self.src_ip = src_ip
-        self.dst_ip = dst_ip
-        self.order = []
-        self.packets = []
-        self.established = False
-        self.complete = False
-
-
 def task4_tcp(pcap_subor, task_code):
     counter = 0
     try:
@@ -976,6 +977,13 @@ def task4_tcp(pcap_subor, task_code):
                         else:
                             communication.order.append(packet_num)
                             communication.packets.append(raw_packet)
+        else:
+            flag_there_was_syn = False
+            flag_there_was_syn_ack = False
+            flag_there_was_ack = False
+            flag_there_was_fin_ack_one = False
+            flag_there_was_ack_one = False
+            flag_there_was_fin_ack_two = False
 
     # Roztriedenie komunikácií do complete a partial
     complete_c = []
