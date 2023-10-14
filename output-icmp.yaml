@@ -1,0 +1,54 @@
+name: PKS2023/24
+pcap_name: eth-9.pcap
+filter_name: ICMP
+partial_comms:
+- number_comm: 1
+  packets:
+  - frame_number: 120
+    len_frame_pcap: 74
+    len_frame_medium: 78
+    frame_type: ETHERNET II
+    src_mac: 00:16:E6:54:C8:97
+    dst_mac: 08:00:27:F6:18:F9
+    ether_type: IPv4
+    src_ip: 172.26.0.20
+    dst_ip: 172.26.0.4
+    protocol: ICMP
+    icmp_type: DESTINATION UNREACHABLE
+    hexa_frame: |
+      00 16 E6 54 C8 97 08 00 27 F6 18 F9 08 00 45 C0
+      00 3C AA E0 00 00 40 01 76 D4 AC 1A 00 14 AC 1A
+      00 04 03 03 55 67 00 00 00 00 45 00 00 20 00 00
+      40 00 40 11 E2 80 AC 1A 00 04 AC 1A 00 14 E5 B2
+      D7 18 00 0C EA 7E 00 04 00 3B
+- number_comm: 2
+  packets:
+  - frame_number: 122
+    len_frame_pcap: 266
+    len_frame_medium: 270
+    frame_type: ETHERNET II
+    src_mac: 08:00:27:F6:18:F9
+    dst_mac: 00:16:E6:54:C8:97
+    ether_type: IPv4
+    src_ip: 172.26.0.4
+    dst_ip: 172.26.0.20
+    protocol: ICMP
+    icmp_type: DESTINATION UNREACHABLE
+    hexa_frame: |
+      08 00 27 F6 18 F9 00 16 E6 54 C8 97 08 00 45 C0
+      00 FC 45 C6 00 00 40 01 DB 2E AC 1A 00 04 AC 1A
+      00 14 03 03 56 27 00 00 00 00 45 00 00 E0 30 EC
+      40 00 40 11 B0 D4 AC 1A 00 14 AC 1A 00 04 D7 18
+      A5 3D 00 CC AF FF 00 03 00 3B 83 EF 50 80 63 70
+      F5 40 34 F4 34 20 37 6D 89 5B 71 B4 E3 E4 1D 2A
+      D0 16 A0 91 ED EF E5 30 3B 46 42 B0 1B 0E 31 95
+      E6 87 B8 10 9F F5 90 2F 60 DC 0F 4A 42 33 B5 4E
+      2D 93 1F DE 34 C6 8A 70 FF 00 AD 23 B6 07 14 4B
+      60 67 D4 5E 04 50 BA 26 96 14 00 3C A1 D0 57 93
+      89 DC FA 3C 37 C0 8F 4D B3 18 89 3E B5 C4 74 CC
+      E8 AD 7F D5 1F AD 4B 1B D8 D7 B4 EA 3E 95 2C 92
+      FA 7D CA 43 45 95 E1 68 60 33 F8 8D 48 D0 8D FC
+      34 C6 57 BA 3C 52 28 E4 75 B2 47 EB 57 13 36 64
+      58 56 AF 62 4D B4 FF 00 57 50 26 51 B9 FF 00 5D
+      54 41 A9 A6 0E 0D 00 4C 8D 60 6B C7 F7 85 63 23
+      78 9A 28 3E 5A C8 A6 7F FF D9
