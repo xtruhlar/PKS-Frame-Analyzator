@@ -320,11 +320,14 @@ def format_output_2(packet):
 
 
 # Funkcia na format outputu Koniec
-def print_it(menu):
-    with open('vystup.yaml', 'w') as file:
+def print_it(menu, task):
+    output_filename = 'output-{}.yaml'.format(task)
+
+    with open(output_filename, 'w') as file:
         yaml.dump(menu, file)
+
     # Výpis úspešného ukončenia programu
-    print("Výstup bol uložený do súboru vystup.yaml")
+    print("  ✅Výstup bol uložený do 🧾{}🎉".format(output_filename))
     return
 
 
@@ -373,7 +376,7 @@ def task1(pcap_subor, task_number):
                 if value == max_ip:
                     menu["max_send_packets_by"].append(key)
 
-        print_it(menu)
+        print_it(menu, "all")
     return
 
 
@@ -394,7 +397,7 @@ def task4_udp(pcap_subor):
             order_and_packet[counter] = packet
 
     if len(order_and_packet) == 0:
-        print("V súbore sa nenachádzajú žiadne TFTP pakety")
+        print("  🚫 V súbore sa nenachádzajú žiadne TFTP pakety")
         return
 
     # Potom ich roztriedim do jednotlivych komunikacii
@@ -481,7 +484,7 @@ def task4_udp(pcap_subor):
             packet_info.update(format_output_2(packet))
             commun_info["packets"].append(packet_info)
 
-    print_it(menu)
+    print_it(menu, "tftp")
     return
 
 
@@ -502,7 +505,7 @@ def task4_arp(pcap_subor):
             order_and_packet[counter] = packet
 
     if len(order_and_packet) == 0:
-        print("V súbore sa nenachádzajú žiadne ARP pakety")
+        print("  🚫 V súbore sa nenachádzajú žiadne ARP pakety")
         return
 
     complete_c = []
@@ -631,7 +634,7 @@ def task4_arp(pcap_subor):
             packet_info = forcycle(packet)
             partial_coms["packets"].append(packet_info)
 
-    print_it(menu)
+    print_it(menu, "arp")
     return
 
 
@@ -663,7 +666,7 @@ def task4_icmp(pcap_subor):
                     order_and_packet[counter] = packet
 
     if len(order_and_packet) == 0:
-        print("V súbore sa nenachádzajú žiadne ICMP pakety")
+        print("  🚫 V súbore sa nenachádzajú žiadne ICMP pakety")
         return
 
     # Potom ich roztriedim do jednotlivych komunikacii
@@ -809,7 +812,7 @@ def task4_icmp(pcap_subor):
             partial_coms["packets"].append(packet_info)
         menu["partial_comms"].append(partial_coms)
 
-    print_it(menu)
+    print_it(menu, "icmp")
 
     return
 
@@ -842,7 +845,7 @@ def task4_tcp(pcap_subor, task_code):
                             order_and_packet[counter] = packet
 
     if len(order_and_packet) == 0:
-        print("V súbore sa nenachádzajú žiadne TCP pakety")
+        print("  🚫 V súbore sa nenachádzajú žiadne TCP pakety")
         return
 
     server_and_client_ip_port = {}
@@ -994,6 +997,7 @@ def task4_tcp(pcap_subor, task_code):
         else:
             partial_c.append(comm)
 
+    # todo eth-1 otvorenie komunikacii
     # Formát menu pre YAML
     if len(complete_c) != 0 and len(partial_c) != 0:
         menu = {
@@ -1054,7 +1058,7 @@ def task4_tcp(pcap_subor, task_code):
             partial_coms["packets"].append(packet_info)
         menu["partial_comms"].append(partial_coms)
 
-    print_it(menu)
+    print_it(menu, task_code.lower())
 
     return
 
@@ -1069,47 +1073,74 @@ order_and_packet = {}
 
 
 def main():
-    print("\nDávid Truhlář - 120897 - PKS Zadanie číslo 1\nAnalyzátor sieťovej komunikácie")
-    print("----------------------------------------------------------")
-    # Načítanie a otvorenie pcap súboru
-    input_user = input("Zadaj názov súboru: ")
-    pcap_subor = "test_pcap_files/"
-    pcap_subor += input_user
-    if not exists(pcap_subor):
-        print("Súbor nemožno otvoriť!")
-        return -1
-    # Výber úlohy
-    print("\nVyber úlohu:")
-    print("1 Výpis informácií o pakete")
-    print("2 Pridanie informácií o IP, protokoloch a portoch")
-    print("3 Zobrazenie štatistiky - IP")
-    print("--4 Zadaj názov filtra--")
-    print("HTTP | HTTPS | TELNET | SSH | FTPcontrol | FTPdata | TFTP | ARP | ICMP")
-
-    task = input("\nZadaj číslo úlohy: ")
-    if task == "1" or task == "2" or task == "3":
-        task1(pcap_subor, task)
-    if task == "tftp" or task == "TFTP" or task == "udp" or task == "UDP":
-        task4_udp(pcap_subor)
-    if task == "arp" or task == "ARP":
-        task4_arp(pcap_subor)
-    if task == "icmp" or task == "ICMP":
-        task4_icmp(pcap_subor)
-    if task == "http" or task == "HTTP" or task == "https" or task == "HTTPS" or task == "telnet" or task == "TELNET" or task == "ssh" or task == "SSH" or task == "ftpcontrol" or task == "FTPcontrol" or task == "FTPc" or task == "ftpdata" or task == "FTPdata" or task == "FTPd" or task == "ftpd" or task == "ftpc":
-        if task == "http":
-            task = "HTTP"  # trace-10.pcap
-        if task == "https":
-            task = "HTTPS"  # trace-10.pcap
-        if task == "telnet":
-            task = "TELNET"  # trace-9.pcap
-        if task == "ssh":
-            task = "SSH"  # eth-5.pcap
-        if task == "ftpcontrol" or task == "FTPcontrol" or task == "FTPc" or task == "ftpc":
-            task = "FTP-CONTROL"  # trace-14.pcap
-        if task == "ftpdata" or task == "FTPdata" or task == "FTPd" or task == "ftpd":
-            task = "FTP-DATA"  # trace-14.pcap
-        task4_tcp(pcap_subor, task)
-    return 0
+    print("\n\t\tDávid Truhlář - 120897 - PKS Zadanie číslo 1\n\t\t   🌐🔍Analyzátor sieťovej komunikácie🔍🌐")
+    print("-------------------------------------------------------------")
+    # Uživatelske rozhranie loop
+    file_loaded = False
+    check2 = 0
+    while True:
+        if file_loaded is False:
+            # Načítanie a otvorenie pcap súboru
+            input_user = input("✍️ Zadaj názov súboru: ")
+            if input_user == "exit":
+                print("🙋‍♂️")
+                return 0
+            pcap_subor = "test_pcap_files/"
+            pcap_subor += input_user
+            if not exists(pcap_subor):
+                print("⛔ 📄{} neexistuje\n✍️ Skús znova alebo zadaj 🚪 exit\n".format(pcap_subor))
+                continue
+            else:
+                file_loaded = True
+                print("📄{} 👌".format(pcap_subor))
+        if check2 != 1:
+            # Výber úlohy
+            print("\n\t👉Vyber úlohu:")
+            print("  📋1 a 2 Výpis informácií o pakete")
+            print("  📊3 Zobrazenie štatistiky - IP")
+            print("  🌪️4 Zadaj názov filtra:")
+            print("  HTTP | HTTPS | TELNET | SSH \n  FTPcontrol | FTPdata | TFTP | ARP | ICMP")
+            print("  🔙 back | 🚪exit")
+        check = 1
+        task = input("\n  ✍️ Zadaj číslo úlohy: ")
+        if task == "1" or task == "2" or task == "3":
+            task1(pcap_subor, task)
+            check = 0
+        if task == "tftp" or task == "TFTP" or task == "udp" or task == "UDP":
+            task4_udp(pcap_subor)
+            check = 0
+        if task == "arp" or task == "ARP":
+            task4_arp(pcap_subor)
+            check = 0
+        if task == "icmp" or task == "ICMP":
+            task4_icmp(pcap_subor)
+            check = 0
+        if task == "http" or task == "HTTP" or task == "https" or task == "HTTPS" or task == "telnet" or task == "TELNET" or task == "ssh" or task == "SSH" or task == "ftpcontrol" or task == "FTPcontrol" or task == "FTPc" or task == "ftpdata" or task == "FTPdata" or task == "FTPd" or task == "ftpd" or task == "ftpc":
+            check = 0
+            if task == "http":
+                task = "HTTP"  # trace-10.pcap
+            if task == "https":
+                task = "HTTPS"  # trace-10.pcap
+            if task == "telnet":
+                task = "TELNET"  # trace-9.pcap
+            if task == "ssh":
+                task = "SSH"  # eth-5.pcap
+            if task == "ftpcontrol" or task == "FTPcontrol" or task == "FTPc" or task == "ftpc":
+                task = "FTP-CONTROL"  # trace-14.pcap
+            if task == "ftpdata" or task == "FTPdata" or task == "FTPd" or task == "ftpd":
+                task = "FTP-DATA"  # trace-14.pcap
+            task4_tcp(pcap_subor, task)
+        if task == "back":
+            file_loaded = False
+            print()
+            continue
+        if task == "exit":
+            print("🙋‍♂️")
+            return 0
+        else:
+            if check == 1:
+                print("  ⛔ Zadal si nesprávny vstup, skús znova / exit")
+                check2 = 1
 
 
 if __name__ == '__main__':
