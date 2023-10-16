@@ -4,11 +4,11 @@ import ruamel.yaml
 from scapy.compat import raw
 from scapy.utils import rdpcap
 
+# Ruamel for Literalscalarstring in YAML
 yaml = ruamel.yaml.YAML()
-hash_table_IP = {}
 
 
-# Class pre TCP
+# Class for TCP
 class TCP_commun:
     def __init__(self, src_port, dst_port, src_ip, dst_ip):
         self.src_port = src_port
@@ -21,7 +21,7 @@ class TCP_commun:
         self.complete = False
 
 
-# Class pre TFTP filter
+# Class for TFTP
 class UDP_comm:
     def __init__(self, src_port, dst_port, src_ip, dst_ip):
         self.src_port = src_port
@@ -33,7 +33,7 @@ class UDP_comm:
         self.complete = False
 
 
-# Class pre ARP filter
+# Class for ARP
 class ARP_comm:
     def __init__(self, src_ip, dst_ip):
         self.src_ip = src_ip
@@ -43,7 +43,7 @@ class ARP_comm:
         self.complete = False
 
 
-# Class pre ICMP filter
+# Class for ICMP
 class ICMP_comm:
     def __init__(self, src_ip, dst_ip, id_n, seq):
         self.src_ip = src_ip
@@ -55,7 +55,7 @@ class ICMP_comm:
         self.complete = False
 
 
-# Funkcia na načítanie protokolov LLC a ETHER z textového súboru
+# This function is used to load protocols from external files 'LLC.txt' and 'ETHER.txt'
 def load_protocols_from_file(frame_type):
     protocols = {}
     if frame_type < 512:
@@ -79,7 +79,7 @@ def load_protocols_from_file(frame_type):
     return protocols
 
 
-# Funkcia na načítanie protokolov IP z textového súboru
+# This function is used to load protocols from external file 'IP.txt'
 def load_protocols_for_ip():
     protocols = {}
     with open('Protocols/IP.txt', 'r') as file:
@@ -93,7 +93,7 @@ def load_protocols_for_ip():
     return protocols
 
 
-# Funkcia na načítanie portov z textového súboru
+# This function is used to load ports from external file 'L4.txt'
 def load_ports():
     ports_in_l4 = {}
     with open('Protocols/L4.txt', 'r') as file:
@@ -107,7 +107,7 @@ def load_ports():
     return ports_in_l4
 
 
-# Funkcia na načítanie ICMP kódov z textového súboru
+# This function is used to load ICMP codes from external file 'ICMP.txt'
 def load_icmp():
     icmp = {}
     with open('Protocols/ICMP.txt', 'r') as file:
@@ -121,60 +121,56 @@ def load_icmp():
     return icmp
 
 
-# Funkcia na získanie zdrojového a cieľového portu
+# This function is used to return src and dst port from packet
 def get_ports(packet):
-    src_port = str(hexlify(packet[34:36]))[2:-1]
-    src_port = int(src_port, 16)
-    dst_port = str(hexlify(packet[36:38]))[2:-1]
-    dst_port = int(dst_port, 16)
+    src_port = int(str(hexlify(packet[34:36]))[2:-1], 16)
+    dst_port = int(str(hexlify(packet[36:38]))[2:-1], 16)
     return src_port, dst_port
 
 
-# Funkcia na získanie zdrojovej a cieľovej MAC adresy
+# This function is used to return src and dst MAC addresses from packet
 def get_mac_addresses(packet):
-    zdroj_mac = ''
-    ciel_mac = ''
-    # Získanie zdrojovej a cieľovej MAC adresy
+    src_MAC = ''
+    dst_MAC = ''
     for i in range(6):
-        zdroj_mac += str(hexlify(packet[i:i + 1]))[2:-1] + ':'
+        src_MAC += str(hexlify(packet[i:i + 1]))[2:-1] + ':'
     for i in range(6, 12):
-        ciel_mac += str(hexlify(packet[i:i + 1]))[2:4] + ':'
-    # Upravenie MAC adries do požadovaného formátu
-    zdroj_mac = zdroj_mac[:-1]
-    ciel_mac = ciel_mac[:-1]
-    return zdroj_mac.upper(), ciel_mac.upper()
+        dst_MAC += str(hexlify(packet[i:i + 1]))[2:4] + ':'
+    # This 2 lines remove last ':' from MAC addresses
+    src_MAC = src_MAC[:-1]
+    dst_MAC = dst_MAC[:-1]
+    return src_MAC.upper(), dst_MAC.upper()
 
 
-# Funkcia na získanie zdrojovej a cieľovej IP adresy
+# This function is used to return src and dst IP addresses from packet
 def get_ip_addresses(packet):
-    zdroj_ip = ''
-    ciel_ip = ''
-    # Získanie zdrojovej a cieľovej MAC adresy
+    # IPv4 is default
+    src_ip = ''
+    dst_ip = ''
     for i in range(26, 30):
-        zdroj_ip += str(int(str(hexlify(packet[i:i + 1]))[2:-1], 16)) + '.'
+        src_ip += str(int(str(hexlify(packet[i:i + 1]))[2:-1], 16)) + '.'
     for i in range(30, 34):
-        ciel_ip += str(int(str(hexlify(packet[i:i + 1]))[2:-1], 16)) + '.'
-    # Upravenie MAC adries do požadovaného formátu
-    zdroj_ip = zdroj_ip[:-1]
-    ciel_ip = ciel_ip[:-1]
-    # if ip is not in zoznam_ip then add it
+        dst_ip += str(int(str(hexlify(packet[i:i + 1]))[2:-1], 16)) + '.'
+    # This 2 lines remove last '.' from IP addresses
+    src_ip = src_ip[:-1]
+    dst_ip = dst_ip[:-1]
 
-    ether_type = str(hexlify(packet[12:14]))[2:-1]
-    ether_type = int(ether_type, 16)
+    # ARP - same logic as IPv4 but different offset
+    ether_type = int(str(hexlify(packet[12:14]))[2:-1], 16)
     if ether_type == 2054:
-        zdroj_ip = ''
-        ciel_ip = ''
+        src_ip = ''
+        dst_ip = ''
         for i in range(28, 32):
-            zdroj_ip += str(int(str(hexlify(packet[i:i + 1]))[2:-1], 16)) + '.'
+            src_ip += str(int(str(hexlify(packet[i:i + 1]))[2:-1], 16)) + '.'
         for i in range(38, 42):
-            ciel_ip += str(int(str(hexlify(packet[i:i + 1]))[2:-1], 16)) + '.'
-        zdroj_ip = zdroj_ip[:-1]
-        ciel_ip = ciel_ip[:-1]
+            dst_ip += str(int(str(hexlify(packet[i:i + 1]))[2:-1], 16)) + '.'
+        src_ip = src_ip[:-1]
+        dst_ip = dst_ip[:-1]
 
-    return zdroj_ip, ciel_ip
+    return src_ip, dst_ip
 
 
-# Funkcia na získanie adresy pre ICMP packet s TTL exceeded
+# This function is used to return src IP address from packet, when TTL is exceeded
 def get_time_to_live_exceeded_address(packet):
     src_ip = ''
     for i in range(26, 30):
@@ -183,38 +179,38 @@ def get_time_to_live_exceeded_address(packet):
     return src_ip
 
 
-# Funkcia na upravenie hexdumpu do požadovaného formátu
+# This function is used to return the right format of hexdump, which is required in output
 def format_hexadump(packet):
-    # Upravenie hexdumpu do požadovaného formátu
-    formatted_packet = ''
+    the_right_format = ''
     for i in range(len(packet)):
-        formatted_packet += str(hexlify(packet[i:i + 1]))[2:-1] + ' '
+        the_right_format += str(hexlify(packet[i:i + 1]))[2:-1] + ' '
+        # 16 bytes per line
         if (i + 1) % 16 == 0:
-            formatted_packet = formatted_packet[:-1]
-            formatted_packet += '\n'
-    formatted_packet = formatted_packet[:-1]
-    formatted_packet += '\n'
-    formatted_packet = formatted_packet.upper()
-    # Literalscalarstring pre zachovanie formátovania
+            the_right_format = the_right_format[:-1]
+            the_right_format += '\n'
+    # This 3 lines remove last ' ', add '\n' and change to upper case
+    the_right_format = the_right_format[:-1]
+    the_right_format += '\n'
+    the_right_format = the_right_format.upper()
+    # Literalscalarstring
     '''
     Information about scalarstring.LiteralScalarString was obtained from:
     https://docs.rundeck.com/docs/manual/document-format-reference/job-yaml-v12.html#job-map-contents
     '''
-    formatted_packet = ruamel.yaml.scalarstring.LiteralScalarString(formatted_packet)
+    # This deletes '-' from the beginning of the string
+    the_right_format = ruamel.yaml.scalarstring.LiteralScalarString(the_right_format)
 
-    return formatted_packet
+    return the_right_format
 
 
-# Funkcia na získanie informácií o EtherType
+# This function is used to return frame type and protocol name
 def get_protocol_info(packet):
-    frame_type = str(hexlify(packet[12:14]))[2:-1]
-    frame_type = int(frame_type, 16)
+    frame_type = int(str(hexlify(packet[12:14]))[2:-1], 16)
     protocol_name = ''
-    # Získanie informácií o EtherType
+    # First 2 bytes of frame type are used to determine frame type
     if frame_type >= 1500 or frame_type == 512 or frame_type == 513:
         frame_type = "ETHERNET II"
-        protocol_bytes = str(hexlify(packet[12:14]))[2:-1]
-        protocol = int(protocol_bytes, 16)
+        protocol = int(str(hexlify(packet[12:14]))[2:-1], 16)
         if protocol in protocols_ether:
             protocol_name = protocols_ether.get(protocol)
         elif protocol in protocols_llc:
@@ -222,19 +218,18 @@ def get_protocol_info(packet):
     else:
         if str(hexlify(packet[14:16]))[2:-1] == "aaaa":
             frame_type = "IEEE 802.3 LLC & SNAP"
-            protocol_bytes = str(hexlify(packet[20:22]))[2:-1]
-            protocol = int(protocol_bytes, 16)
+            protocol = int(str(hexlify(packet[20:22]))[2:-1], 16)
             if protocol in protocols_ether:
                 protocol_name = protocols_ether.get(protocol)
         elif str(hexlify(packet[14:16]))[2:-1] == "ffff":
             frame_type = "IEEE 802.3 RAW"
         else:
             frame_type = "IEEE 802.3 LLC"
-            sap_byte = str(hexlify(packet[14:15]))[2:-1]
-            sap = int(sap_byte, 16)
+            # SAP is defined in 15th byte
+            sap = int(str(hexlify(packet[14:15]))[2:-1], 16)
             if sap == 170:
-                pid_bytes = str(hexlify(packet[47:48]))[2:-1]
-                pid = int(pid_bytes, 16)
+                # PID is defined in 48th byte
+                pid = int(str(hexlify(packet[47:48]))[2:-1], 16)
                 if pid in protocols_llc:
                     protocol_name = protocols_llc[pid]
                 elif pid in protocols_ether:
@@ -244,10 +239,10 @@ def get_protocol_info(packet):
     return frame_type, protocol_name
 
 
-# Funckia na format outputu Zaciatok
+# This function is used to output the right format of YAML part1
 def format_output_1(packet, task_number):
     info = {}
-
+    # Obtain all information about packet
     len_frame_pcap = len(packet)
     if len_frame_pcap < 64:
         len_frame_medium = 64
@@ -256,6 +251,7 @@ def format_output_1(packet, task_number):
     frame_type, pid_sap = get_protocol_info(packet)
     src_mac, dst_mac = get_mac_addresses(packet)
     src_ip, dst_ip = get_ip_addresses(packet)
+    # If task 3 is selected, then IP statistics are counted
     if task_number == "3":
         if src_ip not in hash_table_IP:
             hash_table_IP[src_ip] = 1
@@ -269,7 +265,7 @@ def format_output_1(packet, task_number):
     else:
         app_protocol = ''
 
-    # Formát menu pre YAML
+    # Format output
     info["len_frame_pcap"] = len_frame_pcap
     info["len_frame_medium"] = len_frame_medium
     info["frame_type"] = frame_type
@@ -311,62 +307,64 @@ def format_output_1(packet, task_number):
     return info
 
 
-# Funkcia na format outputu Pokracovanie
+# This function is used to output the right format of YAML part2
 def format_output_2(packet):
-    cely_packet = format_hexadump(packet)
-    info = {"hexa_frame": cely_packet}
+    hexdump = format_hexadump(packet)
+    info = {"hexa_frame": hexdump}
 
     return info
 
 
-# Funkcia na format outputu Koniec
+# This function is used to print the right format of YAML and save it to file
 def print_it(menu, task):
     output_filename = 'output-{}.yaml'.format(task)
 
     with open(output_filename, 'w') as file:
         yaml.dump(menu, file)
 
-    # Výpis úspešného ukončenia programu
+    # Inform user about successful output
     print("  ✅Výstup bol uložený do 🧾{}🎉".format(output_filename))
     return
 
 
-# Funkcia task1 spája úlohy 1, 2 a 3
-def task1(pcap_subor, task_number):
-    vystup = []
-    # Spracovanie pcap súboru
+# This is function for task 1, task 2 and task 3
+def tasks_1_2_3(pcap_subor, task_number):
+    output = []
+    # Check if file exists and load it to packets
     try:
         packets = rdpcap(pcap_subor)
         pcap_subor = pcap_subor.split('/')[-1]
 
-    # Chybové hlásenie
+    # If file doesn't exist, print error message
     except Exception as e:
         print(f"Chyba pri čítaní pcap súboru: {e}")
 
     else:
-        poradie = 1
+        frame_num = 1
+        # Iterate through all packets and save them to output
         for packet in packets:
             packet = raw(packet)
-            packet_info = {"frame_number": poradie}
+            packet_info = {"frame_number": frame_num}
 
             packet_info.update(format_output_1(packet, task_number))
             packet_info.update(format_output_2(packet))
 
-            poradie += 1
-            vystup.append(packet_info)
+            frame_num += 1
+            output.append(packet_info)
 
-        # Uloženie výstupu do súboru
+        # Format menu for YAML
         menu = {
             "name": str('PKS2023/24'),
             "pcap_name": str(pcap_subor),
-            "packets": vystup,
+            "packets": output,
         }
 
-        # Task 3 - IP statistika
+        # Task 3 - IP statistics
         if task_number == "3":
-            # sort hash_table by the max send packets
+            # Sort hash table by values
             sorted_hash = dict(sorted(hash_table_IP.items(), key=lambda item: item[1]))
 
+            # Add IP statistics to menu
             menu["ipv4_senders"] = []
             for key, value in sorted_hash.items():
                 menu["ipv4_senders"].append({'node': key, 'number_of_sent_packets': value})
@@ -380,7 +378,7 @@ def task1(pcap_subor, task_number):
     return
 
 
-# Filter TFTP
+# This is function for task 4 - UDP [TFTP filter]
 def task4_udp(pcap_subor):
     counter = 0
     try:
@@ -389,7 +387,7 @@ def task4_udp(pcap_subor):
     except Exception as e:
         print(f"Chyba pri čítaní pcap súboru: {e}")
 
-    # Najskor najdem vsetky TFTP komunikacie
+    # First I find all UDP - TFTP communications
     for packet in packets:
         counter += 1
         packet = raw(packet)
@@ -399,49 +397,49 @@ def task4_udp(pcap_subor):
             if port != 137:
                 order_and_packet[counter] = packet
 
+    # If there are no UDP - TFTP communications, print error message
     if len(order_and_packet) == 0:
         print("  🚫 V súbore sa nenachádzajú žiadne TFTP pakety")
         return
 
-    # Potom ich roztriedim do jednotlivych komunikacii
+    # Then I sort them into individual communications
     for packet_num, raw_packet in order_and_packet.items():
         IHL = int(str(hexlify(raw_packet[14:15]))[3: -1], 16) * 4 + 14
         src_port = int(str(hexlify(raw_packet[IHL:IHL + 2]))[2:-1], 16)
         dst_port = int(str(hexlify(raw_packet[IHL + 2:IHL + 4]))[2:-1], 16)
         src_ip, dst_ip = get_ip_addresses(raw_packet)
-        op_code = int(str(hexlify(raw_packet[IHL + 8:IHL + 10]))[2:-1],
-                      16)  # 1 Read Request (RRQ)     #2 Write Request (WRQ)   #3 Data (DATA)     #4 Acknowledgment (ACK)     #5 Error (ERROR)
+        op_code = int(str(hexlify(raw_packet[IHL + 8:IHL + 10]))[2:-1], 16)
+        # 1 Read Request (RRQ)     2 Write Request (WRQ)   3 Data (DATA)     4 Acknowledgment (ACK)     5 Error (ERROR)
 
-        # Ak je to nová komunikácia, tak ju vytvorím
+        # If it is a new communication, I create it
         if dst_port == 69 and op_code in [1, 2]:
             communication = UDP_comm(src_port, dst_port, src_ip, dst_ip)
             communication.order.append(packet_num)
             communication.packets.append(raw_packet)
             array_of_comms.append(communication)
 
-        # Ak nie je nová komunikácia, tak ju pridám do existujúcej
+        # If it is not a new communication, I add it to the existing one
         elif len(array_of_comms) != 0:
             for comm in array_of_comms:
+                # If it is not complete, I add it to the existing one
                 if comm.complete is False:
-                    if (
-                            src_ip == comm.dst_ip and dst_ip == comm.src_ip or src_ip == comm.src_ip and dst_ip == comm.dst_ip and dst_port == 69) \
-                            or (
-                            src_port == comm.dst_port and dst_port == comm.src_port or src_port == comm.src_port and dst_port == comm.dst_port):
-                        # Ak je port 69, tak ho zmením na port, ktorý je v komunikácii
+                    if (src_ip == comm.dst_ip and dst_ip == comm.src_ip or src_ip == comm.src_ip and dst_ip == comm.dst_ip and dst_port == 69) \
+                            or (src_port == comm.dst_port and dst_port == comm.src_port or src_port == comm.src_port and dst_port == comm.dst_port):
+                        # If there is port 69 in the packet, I change the port
                         if comm.dst_port == 69:
                             comm.dst_port = src_port
                         if (
                                 comm.src_port == src_port and comm.dst_port == dst_port or comm.src_port == dst_port and comm.dst_port == src_port):
                             comm.order.append(packet_num)
                             comm.packets.append(raw_packet)
-                        # Ak je to ACK, tak je komunikácia ukončená a velkost paketu je menšia ako velkost paketu, ktorý bol poslaný ako druhy
+                        # If the communication is complete, I change the flag
                         if op_code == 4 and len(comm.packets[-2]) <= len(comm.packets[1]):
                             comm.complete = True
-                        # Ak je to Error alebo dohodnutá velkost paketu nie je ako bola dohodnuta
+                        # If the op_code is 5 or 4 and the packet is longer than the second one, I leave the flag on False
                         if op_code == 5 or (op_code == 4 and len(comm.packets[-2]) > len(comm.packets[1])):
                             comm.complete = False
 
-                # Ak je komunikácia ukončená, tak vytvorím novú
+                # If it is complete, I create a new one
                 else:
                     if dst_port == 69 and op_code in [1, 2]:
                         communication = UDP_comm(src_port, dst_port, src_ip, dst_ip)
@@ -449,6 +447,7 @@ def task4_udp(pcap_subor):
                         communication.packets.append(raw_packet)
                         array_of_comms.append(communication)
 
+    # Sort communications into complete and partial
     complete_c = []
     partial_c = []
     for comm in array_of_comms:
@@ -457,7 +456,7 @@ def task4_udp(pcap_subor):
         else:
             partial_c.append(comm)
 
-    # Formát menu pre YAML
+    # Format menu for YAML
     if len(complete_c) != 0 and len(partial_c) != 0:
         menu = {"name": str('PKS2023/24'), "pcap_name": str(pcap_subor), "filter_name": 'tftp'.upper(),
                 "complete_comms": [], "partial_comms": []}
@@ -476,9 +475,11 @@ def task4_udp(pcap_subor):
 
     for comm in array_of_comms:
         if comm in processed_communications:
-            continue  # Skip already processed communications
+            # Skip already processed communications
+            continue
         processed_communications.add(comm)
 
+        # Menu may differ based on complete and partial communications
         if comm.complete:
             compl_num += 1
             commun_info = {
@@ -494,6 +495,7 @@ def task4_udp(pcap_subor):
             }
             menu["partial_comms"].append(commun_info)
 
+        # Format output for YAML
         for packet in comm.packets:
             packet = raw(packet)
             packet_info = {}
@@ -507,7 +509,7 @@ def task4_udp(pcap_subor):
     return
 
 
-# Filter ARP
+# This is function for task 4 - ARP filter
 def task4_arp(pcap_subor):
     counter = 0
     try:
@@ -516,13 +518,14 @@ def task4_arp(pcap_subor):
     except Exception as e:
         print(f"Chyba pri čítaní pcap súboru: {e}")
 
-    # Najskor najdem vsetky ARP komunikacie
+    # Firstly I find all ARP packets
     for packet in packets:
         counter += 1
         packet = raw(packet)
         if int(str(hexlify(packet[12:14]))[2:-1], 16) == 2054:
             order_and_packet[counter] = packet
 
+    # If there are no ARP packets, print error message
     if len(order_and_packet) == 0:
         print("  🚫 V súbore sa nenachádzajú žiadne ARP pakety")
         return
@@ -531,32 +534,33 @@ def task4_arp(pcap_subor):
     partial_requests = []
     bad_array = []
 
-    # Potom ich roztriedim do jednotlivych komunikacii
+    # Then I sort them into individual communications
     for packet_num, raw_packet in order_and_packet.items():
         # IHL je dlzka hlavicky v bajtoch použita ako offset
         IHL = int(str(hexlify(raw_packet[14:15]))[3: -1], 16) * 4 + 14
         src_ip, dst_ip = get_ip_addresses(raw_packet)
         op_code = int(str(hexlify(raw_packet[IHL + 6:IHL + 8]))[2:-1], 16)
 
-        # Ak je to nová komunikácia, tak ju vytvorím
+        # If it is a new communication, I create it op_code == 1 is request
         if op_code == 1:
             communication = ARP_comm(src_ip, dst_ip)
             communication.order.append(packet_num)
             communication.packets.append(raw_packet)
             array_of_comms.append(communication)
 
-        # Ak nie je nová komunikácia, tak ju pridám do existujúcej
+        # If it is not a new communication, I add it to the existing one
         elif len(array_of_comms) != 0:
             for comm in array_of_comms:
+                # If it is not complete, I add it to the existing one
                 if comm.complete is False:
-                    # Ak je to ARP reply, tak je komunikácia ukončená
+                    # If it is a reply, I add it to the existing one
                     if src_ip == comm.dst_ip and dst_ip == comm.src_ip:
                         if op_code == 2:
                             comm.order.append(packet_num)
                             comm.packets.append(raw_packet)
                             comm.complete = True
                             break
-                # Ak je komunikácia ukončená, tak vytvorím novú
+                # If it is complete, I create a new one
                 else:
                     if op_code == 1:
                         communication = ARP_comm(src_ip, dst_ip)
@@ -564,24 +568,26 @@ def task4_arp(pcap_subor):
                         communication.packets.append(raw_packet)
                         array_of_comms.append(communication)
 
-        # Ak je to ARP reply a neexistuje žiadna komunikácia, tak vytvorím novú a pridám ju do zoznamu bad_array
+        # If it is reply, but there is no request, I add it to bad_array
         elif op_code == 2 and len(array_of_comms) == 0:
             bad = ARP_comm(src_ip, dst_ip)
             bad.order.append(packet_num)
             bad.packets.append(raw_packet)
             bad_array.append(bad)
 
-    # Roztriedenie komunikácií do complete a partial
+    # Sort communications into complete and partial
     for comm in array_of_comms:
         if comm.complete is True:
             complete_c.append(comm)
         else:
+            # If it is request, I add it to partial_requests
             if comm.packets[0][20:22] == b'\x00\x01':
                 partial_requests.append(comm)
 
+    # partial_replies are bad_array
     partial_replies = bad_array
 
-    # Formát menu pre YAML
+    # Format menu for YAML
     if len(complete_c) != 0 and (len(partial_requests) != 0 or len(partial_replies) != 0):
         menu = {"name": str('PKS2023/24'), "pcap_name": str(pcap_subor), "filter_name": 'arp'.upper(),
                 "complete_comms": [], "partial_comms": []}
@@ -629,6 +635,7 @@ def task4_arp(pcap_subor):
             }
             menu["partial_comms"].append(partial_coms)
 
+    # This loop saves same lines of code
     def forcycle(packet_to_cycle):
         packet_to_cycle = raw(packet_to_cycle)
         frame_number = comm.order[comm.packets.index(packet_to_cycle)]
@@ -638,6 +645,7 @@ def task4_arp(pcap_subor):
         packet_information.update(format_output_2(packet_to_cycle))
         return packet_information
 
+    # Format output for YAML
     for comm in complete_c:
         for packet in comm.packets:
             packet_info = forcycle(packet)
@@ -657,7 +665,7 @@ def task4_arp(pcap_subor):
     return
 
 
-# Filter ICMP
+# This is function for task 4 - ICMP filter
 def task4_icmp(pcap_subor):
     counter = 0
     try:
@@ -671,9 +679,10 @@ def task4_icmp(pcap_subor):
     partial_c = []
 
     enu = 0
+    # This dictionary is used to communications
     enumerated_comunication = {}
 
-    # Najskor najdem vsetky ICMP komunikacie
+    # Fistly I find all ICMP packets
     for packet in packets:
         counter += 1
         packet = raw(packet)
@@ -684,11 +693,12 @@ def task4_icmp(pcap_subor):
                 if protocols_ip[protocol_ip] == 'ICMP':
                     order_and_packet[counter] = packet
 
+    # If there are no ICMP packets, print error message
     if len(order_and_packet) == 0:
         print("  🚫 V súbore sa nenachádzajú žiadne ICMP pakety")
         return
 
-    # Potom ich roztriedim do jednotlivych komunikacii
+    # Then I sort them into individual communications
     for packet_num, raw_packet in order_and_packet.items():
         ip_source, ip_destination = get_ip_addresses(raw_packet)
         icmp_type = int(str(hexlify(raw_packet[34:35]))[2:-1], 16)
@@ -696,28 +706,29 @@ def task4_icmp(pcap_subor):
         id_number = int(str(hexlify(raw_packet[38:40]))[2:-1], 16)
         seq_number = int(str(hexlify(raw_packet[40:42]))[2:-1], 16)
 
-        # Ak je icmp_type 11, tak zistím adresu, ktorá je v pakete
+        # If icmp_type == 11, then I need to get the IP address
         if icmp_type == 11:
             addr = get_time_to_live_exceeded_address(packet)
 
-        # Ak je to nová komunikácia, tak ju vytvorím
+        # If the communication is new, I create it, icmp_type == 8 is request
         if icmp_type == 8:
             communication = ICMP_comm(ip_source, ip_destination, id_number, seq_number)
             communication.order.append(packet_num)
             communication.packets.append(raw_packet)
             array_of_comms.append(communication)
 
-        # Ak nie je nová komunikácia, tak ju pridám do existujúcej
+        # If the communication is not new, I add it to the existing one
         elif len(array_of_comms) != 0:
             for comm in array_of_comms:
+                # If the communication is not complete, I add it to the existing one
                 if comm.complete is False:
-                    # Ošetrenie pre ICMP type 11
+                    # This is for ICMP type 11
                     if icmp_type == 11 and addr == comm.dst_ip and ip_destination == comm.src_ip:
                         comm.order.append(packet_num)
                         comm.packets.append(raw_packet)
                         comm.complete = True
                         break
-                    # Ošetrenie pre ICMP type 0
+                    # This is for ICMP type 0
                     elif ip_source == comm.dst_ip and ip_destination == comm.src_ip:
                         if icmp_type == 0 and id_number == comm.id:
                             comm.order.append(packet_num)
@@ -725,7 +736,7 @@ def task4_icmp(pcap_subor):
                             comm.complete = True
                             break
 
-                # Ak je komunikácia ukončená, tak vytvorím novú
+                # If the communication is complete, I create a new one
                 else:
                     if icmp_type == 8:
                         communication = ICMP_comm(ip_source, ip_destination, id_number, seq_number)
@@ -733,41 +744,41 @@ def task4_icmp(pcap_subor):
                         communication.packets.append(raw_packet)
                         array_of_comms.append(communication)
 
-        # Ak je icmp_type 3, 4 alebo 5, tak vytvorím novú komunikáciu a pridám ju do zoznamu partial_c
+        # If the icmp_type is 3, 4 or 5, I add it to partial_c
         if icmp_type in [3, 4, 5]:
             bad = ICMP_comm(ip_source, ip_destination, id_number, seq_number)
             bad.order.append(packet_num)
             bad.packets.append(raw_packet)
             partial_c.append(bad)
 
-    # Roztriedenie komunikácií do complete a partial
+    # Sort communications into complete and partial
     for comm in array_of_comms:
         if comm.complete:
             complete_c.append(comm)
         else:
             partial_c.append(comm)
 
-    # Rozdelenie jednotlivých párov do jednotlivých komunikácií podľa IP a id
+    # Sort communications into pairs based on id and ip
     for pair in complete_c:
         found = False
-        # Kontrola, či už existuje komunikácia s daným id a ip
+        # Check if there is already a communication with the same id and ip
         for key, existing_comm in enumerated_comunication.items():
-            # Ak áno, tak pridám par do existujúcej komunikácie
+            # If there is, I add it to the existing one
             if ((existing_comm.src_ip == pair.src_ip and existing_comm.dst_ip == pair.dst_ip) or (
                     existing_comm.src_ip == pair.dst_ip and existing_comm.dst_ip == pair.src_ip)) and existing_comm.id == pair.id:
                 existing_comm.order.append(pair.order[0])
                 existing_comm.order.append(pair.order[1])
                 existing_comm.packets.extend(pair.packets)
                 existing_comm.complete = True
+                # I set found to True, so I know that I found the right communication
                 found = True
                 break
-
-        # Ak neexistuje komunikácia s daným id a ip, tak vytvorím novú
+        # If there is not, I create a new one
         if not found:
             enumerated_comunication[enu] = pair
             enu += 1
 
-    # Formát menu pre YAML
+    # Format menu for YAML
     if len(enumerated_comunication) != 0 and len(partial_c) != 0:
         menu = {
             "name": str('PKS2023/24'),
@@ -793,6 +804,7 @@ def task4_icmp(pcap_subor):
         }
 
     order_number = 0
+    # Format output for YAML
     for comm in enumerated_comunication.values():
         order_number += 1
         complete_coms = {
@@ -836,6 +848,7 @@ def task4_icmp(pcap_subor):
     return
 
 
+# This is function for task 4 - TCP filters, task_code is used to determine which filter to use
 def task4_tcp(pcap_subor, task_code):
     counter = 0
     try:
@@ -845,7 +858,7 @@ def task4_tcp(pcap_subor, task_code):
     except Exception as e:
         print(f"Chyba pri čítaní pcap súboru: {e}")
 
-    # Najskor najdem vsetky TCP komunikacie
+    # Firstly I find all TCP packets, based on task_code I find the right ports
     for packet in packets:
         counter += 1
         packet = raw(packet)
@@ -863,63 +876,73 @@ def task4_tcp(pcap_subor, task_code):
                         if port == task_code:
                             order_and_packet[counter] = packet
 
+    # If there are no TCP packets, print error message
     if len(order_and_packet) == 0:
         print("  🚫 V súbore sa nenachádzajú žiadne TCP pakety")
         return
 
+    # Then I sort them into individual communications usig dictionary
+    # key = (src_ip, src_port, dst_ip, dst_port), value = [packet_num, raw_packet]
     server_and_client_ip_port = {}
     for packet_num, raw_packet in order_and_packet.items():
         src_ip, dst_ip = get_ip_addresses(raw_packet)
         src_porty, dst_porty = get_ports(raw_packet)
 
-        # Skontrolujte, či máte dostupné IP adresy a porty
+        # If src_porty and dst_porty are not None, I create a unique key for this communication
         if src_porty is not None and dst_porty is not None:
-            # Vytvorte unikátny kľúč pre túto komunikáciu
+            # Create keys for both directions
             key1 = (src_ip, src_porty, dst_ip, dst_porty)
             key2 = (dst_ip, dst_porty, src_ip, src_porty)
 
-            # Skontrolujte, či už máte takýto kľúč v slovníku
+            # Check if this communication already exists
+            # If yes, add this packet to existing communication with this key
             if key1 in server_and_client_ip_port:
-                # Ak áno, pridajte tento paket do existujúcej komunikácie
                 server_and_client_ip_port[key1].append([packet_num, raw_packet])
             elif key2 in server_and_client_ip_port:
-                # Ak nie, pridajte tento paket do existujúcej komunikácie s iným kľúčom
                 server_and_client_ip_port[key2].append([packet_num, raw_packet])
             else:
-                # Ak neexistuje ani jeden z týchto kľúčov, vytvorte nový zoznam pre túto komunikáciu
+                # If not, create new communication
                 server_and_client_ip_port[key1] = [[packet_num, raw_packet]]
 
+    # Flags for checking if the communication is established
     flag_there_was_syn = False
     flag_there_was_syn_ack = False
     flag_there_was_ack = False
 
+    # Flags for checking if the communication is complete
     flag_there_was_fin_ack_one = False
     flag_there_was_ack_one = False
     flag_there_was_fin_ack_two = False
 
-    # Pre kazdu server a client komunikaciu kontrolujem nadviazanie spojenia a ukoncenie
+    # For each key, value in dictionary I create a new communication
     for ip_port, tuple_pair in server_and_client_ip_port.items():
+        # For each packet in communication I check if it is SYN, SYN ACK, ACK
         for packet_num, raw_packet in tuple_pair:
             src_ip, dst_ip = get_ip_addresses(raw_packet)
             src_port, dst_port = get_ports(raw_packet)
+            # Binary representation of flags
             flags = bin(int(str(hexlify(raw_packet[47:48]))[2:-1], 16))
-            flags = flags[2:]
-            flags = flags.zfill(8)
+            flags = flags[2:] # remove 0b
+            flags = flags.zfill(8)  # fill with zeros to length 8
+            # Flags are set
             SYN = int(flags[-2])
             ACK = int(flags[-5])
             FIN = int(flags[-1])
             RST = int(flags[-3])
 
+            # If there is no communication, I create it
             if len(array_of_comms) == 0:
                 communication = TCP_commun(src_port, dst_port, src_ip, dst_ip)
                 communication.order.append(packet_num)
                 communication.packets.append(raw_packet)
                 array_of_comms.append(communication)
+                # If the first packet has SYN, I set the flag
                 if SYN == 1 and ACK == 0 and FIN == 0 and RST == 0:
                     flag_there_was_syn = True
 
+            # If there is a communication, I add it to the existing one
             elif len(array_of_comms) != 0 and (src_ip == communication.src_ip or dst_ip == communication.src_ip) and (dst_ip == communication.dst_ip or dst_ip == communication.src_ip) and (src_port == communication.dst_port or src_port == communication.src_port) and (dst_port == communication.src_port or dst_port == communication.dst_port):
-                # Nadviazanie spojenia
+                # Searching for established communication
                 if flag_there_was_syn is False and (SYN == 1 and ACK == 0 and FIN == 0 and RST == 0):
                     flag_there_was_syn = True
                     communication = TCP_commun(src_port, dst_port, src_ip, dst_ip)
@@ -943,6 +966,7 @@ def task4_tcp(pcap_subor, task_code):
                             dst_ip == communication.dst_ip or dst_ip == communication.src_ip) and (
                             src_port == communication.src_port or src_port == communication.dst_port) and (
                             dst_port == communication.dst_port or dst_port == communication.src_port):
+                        # If the communication is established, I am looking for the end of the communication
                         if communication.established is True:
                             # There are 4 way of ending connection
                             # If last packet has RST
@@ -1002,30 +1026,33 @@ def task4_tcp(pcap_subor, task_code):
                                 flag_there_was_fin_ack_one = False
                                 flag_there_was_fin_ack_two = False
                                 flag_there_was_ack_one = False
+                            # Else the packet is DATA and I add it to the existing communication
                             else:
                                 communication.order.append(packet_num)
                                 communication.packets.append(raw_packet)
+                # If the communication is not established, I add it to the existing one
                 else:
-                    # communication = TCP_commun(src_port, dst_port, src_ip, dst_ip)
                     communication.order.append(packet_num)
                     communication.packets.append(raw_packet)
-                    # array_of_comms.append(communication)
+            # If there is no communication, I create it
             else:
                 communication = TCP_commun(src_port, dst_port, src_ip, dst_ip)
                 communication.order.append(packet_num)
                 communication.packets.append(raw_packet)
                 array_of_comms.append(communication)
+                # If the first packet has SYN, I set the flag
                 if SYN == 1 and ACK == 0 and FIN == 0 and RST == 0:
                     flag_there_was_syn = True
                 else:
                     flag_there_was_syn = False
+                # All other flags are set to False
                 flag_there_was_syn_ack = False
                 flag_there_was_ack = False
                 flag_there_was_fin_ack_one = False
                 flag_there_was_ack_one = False
                 flag_there_was_fin_ack_two = False
 
-        # Roztriedenie komunikácií do complete a partial
+        # Sort communications into complete and partial
         complete_c = []
         partial_c = []
         for comm in array_of_comms:
@@ -1034,7 +1061,7 @@ def task4_tcp(pcap_subor, task_code):
             elif comm.complete is False:
                 partial_c.append(comm)
 
-    # Formát menu pre YAML
+    # Format menu for YAML
     if len(complete_c) != 0 and len(partial_c) != 0:
         menu = {
             "name": str('PKS2023/24'),
@@ -1099,6 +1126,7 @@ def task4_tcp(pcap_subor, task_code):
     return
 
 
+# Those are functions for loading infromation from external files
 protocols_llc = load_protocols_from_file(100)
 protocols_ether = load_protocols_from_file(513)
 protocols_ip = load_protocols_for_ip()
@@ -1106,24 +1134,28 @@ ports = load_ports()
 icmp_codes = load_icmp()
 array_of_comms = []
 order_and_packet = {}
+hash_table_IP = {}
 
 
+# MAIN
 def main():
+    # Program header
     print("\n\t\tDávid Truhlář - 120897 - PKS Zadanie číslo 1\n\t\t   🌐🔍Analyzátor sieťovej komunikácie🔍🌐")
     print("-------------------------------------------------------------")
-    # Uživatelske rozhranie loop
+    # Loop for User Interface
     file_loaded = False
     check2 = 0
     check_complete = -1
     while True:
         if file_loaded is False:
-            # Načítanie a otvorenie pcap súboru
+            # File selection
             input_user = input("  ✍️ Zadaj názov súboru: ")
             if input_user == "exit":
                 print("  🙋‍♂️")
                 return 0
             pcap_subor = "test_pcap_files/"
             pcap_subor += input_user
+            # Check if file exists
             if not exists(pcap_subor):
                 print("  ⛔ 📄{} neexistuje\n  ✍️ Skús znova alebo zadaj 🚪 exit\n".format(pcap_subor))
                 continue
@@ -1131,7 +1163,7 @@ def main():
                 file_loaded = True
                 print("  📄{} 👌".format(pcap_subor))
         if check2 != 1:
-            # Výber úlohy
+            # Task selection
             print()
             print("  📋1 a 2 Výpis informácií o pakete")
             print("  📊3 Zobrazenie štatistiky - IP")
@@ -1151,7 +1183,7 @@ def main():
                 return 0
 
         if task == "1" or task == "2" or task == "3":
-            task1(pcap_subor, task)
+            tasks_1_2_3(pcap_subor, task)
             check = 0
             check2 = 1
             check_complete = 0
