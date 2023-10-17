@@ -221,6 +221,8 @@ def get_protocol_info(packet):
             protocol = int(str(hexlify(packet[20:22]))[2:-1], 16)
             if protocol in protocols_ether:
                 protocol_name = protocols_ether.get(protocol)
+                if protocol_name == "CDP":
+                    array_of_comms.append(packet)
         elif str(hexlify(packet[14:16]))[2:-1] == "ffff":
             frame_type = "IEEE 802.3 RAW"
         else:
@@ -423,8 +425,10 @@ def task4_udp(pcap_subor):
             for comm in array_of_comms:
                 # If it is not complete, I add it to the existing one
                 if comm.complete is False:
-                    if (src_ip == comm.dst_ip and dst_ip == comm.src_ip or src_ip == comm.src_ip and dst_ip == comm.dst_ip and dst_port == 69) \
-                            or (src_port == comm.dst_port and dst_port == comm.src_port or src_port == comm.src_port and dst_port == comm.dst_port):
+                    if (
+                            src_ip == comm.dst_ip and dst_ip == comm.src_ip or src_ip == comm.src_ip and dst_ip == comm.dst_ip and dst_port == 69) \
+                            or (
+                            src_port == comm.dst_port and dst_port == comm.src_port or src_port == comm.src_port and dst_port == comm.dst_port):
                         # If there is port 69 in the packet, I change the port
                         if comm.dst_port == 69:
                             comm.dst_port = src_port
@@ -922,7 +926,7 @@ def task4_tcp(pcap_subor, task_code):
             src_port, dst_port = get_ports(raw_packet)
             # Binary representation of flags
             flags = bin(int(str(hexlify(raw_packet[47:48]))[2:-1], 16))
-            flags = flags[2:] # remove 0b
+            flags = flags[2:]  # remove 0b
             flags = flags.zfill(8)  # fill with zeros to length 8
             # Flags are set
             SYN = int(flags[-2])
@@ -941,7 +945,10 @@ def task4_tcp(pcap_subor, task_code):
                     flag_there_was_syn = True
 
             # If there is a communication, I add it to the existing one
-            elif len(array_of_comms) != 0 and (src_ip == communication.src_ip or dst_ip == communication.src_ip) and (dst_ip == communication.dst_ip or dst_ip == communication.src_ip) and (src_port == communication.dst_port or src_port == communication.src_port) and (dst_port == communication.src_port or dst_port == communication.dst_port):
+            elif len(array_of_comms) != 0 and (src_ip == communication.src_ip or dst_ip == communication.src_ip) and (
+                    dst_ip == communication.dst_ip or dst_ip == communication.src_ip) and (
+                    src_port == communication.dst_port or src_port == communication.src_port) and (
+                    dst_port == communication.src_port or dst_port == communication.dst_port):
                 # Searching for established communication
                 if flag_there_was_syn is False and (SYN == 1 and ACK == 0 and FIN == 0 and RST == 0):
                     flag_there_was_syn = True
@@ -949,11 +956,13 @@ def task4_tcp(pcap_subor, task_code):
                     communication.order.append(packet_num)
                     communication.packets.append(raw_packet)
                     array_of_comms.append(communication)
-                elif flag_there_was_syn is True and flag_there_was_syn_ack is False and (SYN == 1 and ACK == 1 and FIN == 0 and RST == 0):
+                elif flag_there_was_syn is True and flag_there_was_syn_ack is False and (
+                        SYN == 1 and ACK == 1 and FIN == 0 and RST == 0):
                     flag_there_was_syn_ack = True
                     communication.order.append(packet_num)
                     communication.packets.append(raw_packet)
-                elif flag_there_was_syn is True and flag_there_was_syn_ack is True and flag_there_was_ack is False and (SYN == 0 and ACK == 1 and FIN == 0 and RST == 0):
+                elif flag_there_was_syn is True and flag_there_was_syn_ack is True and flag_there_was_ack is False and (
+                        SYN == 0 and ACK == 1 and FIN == 0 and RST == 0):
                     flag_there_was_ack = True
                     communication.order.append(packet_num)
                     communication.packets.append(raw_packet)
@@ -1126,6 +1135,58 @@ def task4_tcp(pcap_subor, task_code):
     return
 
 
+# Doimplementovat CDP ako filter pre 802.3 LLC + SNAP
+def task_CDP(pcap_subor):
+    try:
+        packets = rdpcap(pcap_subor)
+        pcap_subor = pcap_subor.split('/')[-1]
+    except Exception as e:
+        print(f"Chyba pri čítaní pcap súboru: {e}")
+
+    counter = 0
+    # This is the dictionary for CDP packets
+    for packet in packets:
+        counter += 1
+        packet = raw(packet)
+        AAAA = str(hexlify(packet[14:15]))[2:-1]
+        if AAAA == "aa":
+            protocol_c = int(str(hexlify(packet[20:22]))[2:-1], 16)
+            if protocol_c == 8192:
+                order_and_packet[counter] = packet
+
+    # If there are no CDP packets, print error message
+    if len(order_and_packet) == 0:
+        print("  🚫 V súbore sa nenachádzajú žiadne CDP pakety")
+        return
+
+    # for each packet I find the right information
+    for packet_num, raw_packet in order_and_packet.items():
+        protocol_c = int(str(hexlify(raw_packet[20:22]))[2:-1], 16)
+        if protocol_c == 8192:
+            order_and_packet[packet_num] = raw_packet
+
+    # Format menu for YAML
+    menu = {
+        "name": str('PKS2023/24'),
+        "pcap_name": str(pcap_subor),
+        "packets": []
+    }
+
+    # Format output for YAML
+    for packet_num, raw_packet in order_and_packet.items():
+        packet = raw_packet
+        frame_number = packet_num
+        packet_info = {"frame_number": frame_number}
+        packet_info.update(format_output_1(packet, "cdp"))
+        packet_info.update(format_output_2(packet))
+        menu["packets"].append(packet_info)
+
+    number_of_packets = len(menu["packets"])
+    menu["number_frames"] = number_of_packets
+    print_it(menu, "all")
+    return
+
+
 # Those are functions for loading infromation from external files
 protocols_llc = load_protocols_from_file(100)
 protocols_ether = load_protocols_from_file(513)
@@ -1168,7 +1229,8 @@ def main():
             print("  📋1 a 2 Výpis informácií o pakete")
             print("  📊3 Zobrazenie štatistiky - IP")
             print("  🌪️4 Zadaj názov filtra:")
-            print("  \t\tHTTP | HTTPS | TELNET | SSH \n  \tFTPcontrol | FTPdata | TFTP | ARP | ICMP")
+            print("  \t\tHTTP | HTTPS | TELNET | SSH \n  \tFTPcontrol | FTPdata | TFTP | ARP | ICMP | CDP")
+
             print("  🚪exit")
         check = 1
         if check_complete != 0:
@@ -1205,7 +1267,12 @@ def main():
         if task == "4":
             check = 0
             print()
-            print("  Uloha 4 - Zadaj meno filtra:\n  HTTP | HTTPS | TELNET\n  SSH | FTPcontrol | FTPdata\n  TFTP | ARP | ICMP")
+            print(
+                "  Uloha 4 - Zadaj meno filtra:\n  HTTP | HTTPS | TELNET\n  SSH | FTPcontrol | FTPdata\n  TFTP | ARP | ICMP | CDP")
+            check2 = 1
+        if task == "CDP":
+            task_CDP(pcap_subor)
+            check = 0
             check2 = 1
         if task == "http" or task == "HTTP" or task == "https" or task == "HTTPS" or task == "telnet" or task == "TELNET" or task == "ssh" or task == "SSH" or task == "ftpcontrol" or task == "FTPcontrol" or task == "FTPc" or task == "ftpdata" or task == "FTPdata" or task == "FTPd" or task == "ftpd" or task == "ftpc":
             check = 0
