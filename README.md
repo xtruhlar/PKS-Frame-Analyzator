@@ -1,21 +1,21 @@
-# PKS_ZADANIE1
-PKS - Frame analyzator
+**PKS_ZADANIE1**  
+**PKS - Frame Analyzer**  
 
-Tento projekt je zameraný na analýzu *.pcap súborov.
+This project focuses on analyzing *.pcap files.  
 
-Funkcie:
-  1. Výpis základných informácií o každom frame zachytenom v *.pcap súbore
-  2. Pridanie informácií o IPv4 protokole / ARP
-  3. Pridanie štatistiky IPv4
-  4. Aplikovanie rôznych filrov a rozpoznávanie konkrétnych komunikácii
-       a) HTTP
-       b) HTTPS
-       c) TELNET
-       d) SSH
-       e) FTP - DATA
-       f) FTP - CONTROL
-       g) ICMP
-       h) TFTP
-       i) ARP
+**Features:**  
+- Display basic information about each frame captured in a *.pcap file  
+- Add information about the IPv4 protocol / ARP  
+- Add IPv4 statistics  
+- Apply various filters and recognize specific communications:  
+  a) HTTP  
+  b) HTTPS  
+  c) TELNET  
+  d) SSH  
+  e) FTP - DATA  
+  f) FTP - CONTROL  
+  g) ICMP  
+  h) TFTP  
+  i) ARP  
 
-Súčasťou projektu je aj dokumentácia s opisom riešenia a návodom na obsluhu programu.
+The project also includes documentation describing the solution and a user guide for operating the program.
